@@ -1,9 +1,10 @@
 - module(node).
-- export([init/6,passive/6,active/6, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1]).
+- export([init/7,passive/6,active/6, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1]).
+- import(network0,[getNeighbors/2]).
 - record(state, {id, pid, buffer, view}).
 
-init(Id, C, H, S, PushPull, PeerS) ->
-  State = #state{id = Id, pid = self(), buffer = [], view = []},
+init(Id, C, H, S, PushPull, PeerS, List) ->
+  State = #state{id = Id, pid = self(), buffer = [], view = [getNeigh(List,Id)]},
   ActivePid = spawn(node, active, [State,H,S,C,PushPull,PeerS]),
   PassivePid = spawn(node, passive, [State,H,S,C,PushPull,PeerS]),
   node_hub(ActivePid,PassivePid).
@@ -132,3 +133,18 @@ select(C,H,S,BufferP,View) ->
 
 increaseAge(View) ->
     lists:map(fun([A,B]) -> [A+1,B] end, View).
+
+transform([],Acc) ->
+  Acc;
+
+transform([X],Acc) ->
+  Neigh = [[maps:get(age,X),maps:get(id_link,X)]],
+  lists:append(Acc,Neigh);
+
+transform([X|Y],Acc) ->
+  Neigh = [[maps:get(age,X),maps:get(id_link,X)]],
+  transform(Y,lists:append(Acc,Neigh)).
+
+getNeigh(List,Id) ->
+  Neighbors = network0:getNeighbors(Id,List),
+  transform(Neighbors,[]).
