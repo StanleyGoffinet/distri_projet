@@ -27,7 +27,7 @@ getNeighbors(ID, [_|T])-> getNeighbors(ID, T).
 
 test_getN() ->
   List = network_list(5,[]),
-  getNeighbors(1,List)
+  [getNeighbors(1,List),getNeighbors(4,List)]
   .
 
 test_network() ->
