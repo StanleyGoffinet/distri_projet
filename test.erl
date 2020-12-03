@@ -1,16 +1,22 @@
 -module(test).
 -import(node,[init/6]).
 -import(network,[listen/1]).
--export([launch/0]).
+-export([launch/1]).
 
-launch() ->
+launch(Time) ->
   ListPid = spawn(network,listen,[[]]),
   ListPid ! {init,5},
-  ListPid ! {launchNodes,1,0,0,true,tail}.
-  %NodePid1 = spawn(node,init,[1,1,0,0,true,tail]),
-  %NodePid2 = spawn(node,init,[2,1,0,0,true,tail]),
-  %NodePid1 ! {update, [[0,NodePid2]],active},
-  %NodePid1 ! {update, [[0,NodePid2]],passive},
-  %NodePid2 ! {update, [[0,NodePid1]],active},
-  %NodePid2 ! {update, [[0,NodePid1]],passive},
-  %NodePid1 ! {timer}.
+  ListPid ! {launchNodes,4,3,7,true,floor(Time/2),tail},
+  cycle(ListPid,0,Time).
+  %test_time(Time).
+
+cycle(ListPid,N,Time) ->
+  if
+    N < 3 ->
+      io:format("Cycle ~p~n",[N]),
+      ListPid ! {timer},
+      timer:sleep(Time),
+      cycle(ListPid,N+1,Time);
+    true ->
+      io:format("end of cycles")
+  end.

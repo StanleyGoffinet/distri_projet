@@ -1,19 +1,19 @@
 - module(node).
-- export([init/7,passive/6,active/6, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1,listen/0]).
+- export([init/8,passive/6,active/7, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1,listen/0]).
 - import(network,[getNeighbors/2]).
 - record(state, {id, pid, buffer, view}).
 
 
 listen() ->
   receive
-    {init,Id,C,H,S,PushPull,PeerS,ListPid} ->
-      init(Id,C,H,S,PushPull,PeerS,ListPid)
+    {init,Id,C,H,S,PushPull,T,PeerS,ListPid} ->
+      init(Id,C,H,S,PushPull,T,PeerS,ListPid)
     end.
 
 
-init(Id, C, H, S, PushPull, PeerS, List) ->
-  State = #state{id = Id, pid = self(), buffer = [], view = [getNeigh(List,Id)]},
-  ActivePid = spawn(node, active, [State,H,S,C,PushPull,PeerS]),
+init(Id, C, H, S, PushPull,T, PeerS, List) ->
+  State = #state{id = Id, pid = self(), buffer = [], view = getNeigh(List,Id)},
+  ActivePid = spawn(node, active, [State,H,S,C,PushPull,T,PeerS]),
   PassivePid = spawn(node, passive, [State,H,S,C,PushPull,PeerS]),
   node_hub(ActivePid,PassivePid).
 
@@ -44,26 +44,27 @@ passive(State,H,S,C,PushPull,PeerS) ->
     View_select = select(C,H,S,BufferP,State#state.view),
     NewView = increaseAge(View_select),
     NewState = #state{id = State#state.id, pid = State#state.pid, buffer = Buffer, view = NewView},
-    State#state.pid ! {update,NewState,active},
+    State#state.pid ! {update,NewView,active},
     passive(NewState,H,S,C,PushPull,PeerS)
   end.
 
-active(State,H,S,C,PushPull,PeerS) ->
+active(State,H,S,C,PushPull,T,PeerS) ->
   receive
     {update,NewView} ->
       NewState = #state{id= State#state.id, pid = State#state.pid, buffer = [], view = NewView},
-      active(NewState,H,S,C,PushPull,PeerS);
+      active(NewState,H,S,C,PushPull,T,PeerS);
     {timer} ->
       if
         PeerS =:= tail ->
-          Peer = lists:last(lists:last(State#state.view));
+          io:format("view ~p~n",[State#state.view]),
+          Peer = lists:last(State#state.view);
         PeerS =:= rand ->
-          Peer = lists:last(lists:nth(rand:uniform(length(State#state.view)-1), State#state.view))
+          Peer = lists:nth(rand:uniform(length(State#state.view)-1), State#state.view)
       end,
       PermutedView = permute(State#state.view),
       View = moveOldest(PermutedView,H),
       Buffer = lists:append([[0,State#state.pid]],lists:sublist(View, floor(abs(C/2-1)))),
-      Peer ! {push,Buffer,self()},
+      lists:last(Peer) ! {push,Buffer,self()},
       if
         PushPull ->
           receive
@@ -71,13 +72,16 @@ active(State,H,S,C,PushPull,PeerS) ->
               View_select = select(C,H,S,BufferP,State#state.view),
               NewView = increaseAge(View_select),
               NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
+          after T ->
+              NewView = lists:delete(Peer,State#state.view),
+              NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
           end;
         true ->
           NewView = increaseAge(State#state.view),
           NewState = #state{id= State#state.id, pid = State#state.pid, buffer = Buffer, view = NewView}
       end,
-      State#state.pid ! {update,NewState, passive},
-      active(NewState,H,S,C,PushPull,PeerS)
+      State#state.pid ! {update,NewView, passive},
+      active(NewState,H,S,C,PushPull,T,PeerS)
   end.
 
 permute(View) ->
