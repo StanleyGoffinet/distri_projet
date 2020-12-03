@@ -1,5 +1,5 @@
 -module(network).
--export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1]).
+-export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1,make_circular/2,test_makeC/0]).
 -import(node,[listen/0]).
 % first node
 add(ID,PID,_,[])->
@@ -16,6 +16,16 @@ add(ID,PID, ID_max,[ #{id := ID_before,pid := PID_before , linked_node_list := L
       [#{id =>ID, pid => PID , linked_node_list => [#{id=>ID_before}]},
       #{id => ID_before,pid => PID_before ,linked_node_list => lists:append([#{id => ID}],List_before)} |T]
   end.
+
+
+make_circular(#{id := 1 , linked_node_list := List} |T])->
+  [ #{id => 1 , linked_node_list => lists:append([#{id =>(lists:length(T)+1)}],List)} | T]
+  .
+
+make_circular(ID_max, [ #{id := ID_max , linked_node_list := List} |T])->
+
+  make_circular(lists:reverse([ #{id => ID_max , linked_node_list => lists:append([#{id => 1}],List)} | T])).
+
 
 %network_list(0,List_netw)->lists:reverse(List_netw);
 network_list(0,List_netw)->List_netw;
@@ -69,3 +79,22 @@ test_getPID() ->
 test_network() ->
   network_list(5,[])
   .
+
+test_makeC() ->
+  make_circular(5,[
+  #{id => 5,
+    linked_node_list => [#{id => 4}],
+    pid => 0},
+  #{id => 4,
+    linked_node_list => [#{id => 3},#{id => 5}],
+    pid => 0},
+  #{id => 3,
+    linked_node_list => [#{id => 2},#{id => 4}],
+    pid => 0},
+ #{id => 2,
+   linked_node_list => [#{id => 1},#{id => 3}],
+   pid => 0},
+   #{id => 1,
+    linked_node_list => [#{id => 2}],
+    pid => 0}
+   ]).
