@@ -1,10 +1,19 @@
 - module(node).
-- export([init/7,passive/6,active/6, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1]).
-- import(network0,[getNeighbors/2]).
+- export([init/7,passive/6,active/6, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1,listen/0]).
+- import(network,[getNeighbors/2]).
 - record(state, {id, pid, buffer, view}).
+
+
+listen() ->
+  receive
+    {init,Id,C,H,S,PushPull,PeerS,ListPid} ->
+      init(Id,C,H,S,PushPull,PeerS,ListPid)
+    end.
+
 
 init(Id, C, H, S, PushPull, PeerS, List) ->
   State = #state{id = Id, pid = self(), buffer = [], view = [getNeigh(List,Id)]},
+  io:format("hi ~p", [State#state.view]),
   ActivePid = spawn(node, active, [State,H,S,C,PushPull,PeerS]),
   PassivePid = spawn(node, passive, [State,H,S,C,PushPull,PeerS]),
   node_hub(ActivePid,PassivePid).
@@ -138,13 +147,16 @@ transform([],Acc) ->
   Acc;
 
 transform([X],Acc) ->
-  Neigh = [[maps:get(age,X),maps:get(id_link,X)]],
+  Neigh = [[0,maps:get(pid,X)]],
   lists:append(Acc,Neigh);
 
 transform([X|Y],Acc) ->
-  Neigh = [[maps:get(age,X),maps:get(id_link,X)]],
+  Neigh = [[0,maps:get(pid,X)]],
   transform(Y,lists:append(Acc,Neigh)).
 
 getNeigh(List,Id) ->
-  Neighbors = network0:getNeighbors(Id,List),
-  transform(Neighbors,[]).
+  List ! {getNeigh,Id,self()},
+  receive
+    {neigh,Neighbors} ->
+      transform(Neighbors,[])
+  end.
