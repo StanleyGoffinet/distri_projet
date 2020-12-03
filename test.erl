@@ -5,14 +5,14 @@
 
 launch(Time) ->
   ListPid = spawn(network,listen,[[]]),
-  ListPid ! {init,5},
-  ListPid ! {launchNodes,4,3,7,true,floor(Time/2),tail},
-  cycle(ListPid,0,Time).
+  ListPid ! {init,2},
+  ListPid ! {launchNodes,7,4,3,true,floor(Time/2),tail},
+  cycle(ListPid,1,Time).
   %test_time(Time).
 
 cycle(ListPid,N,Time) ->
   if
-    N < 3 ->
+    N =< 3 ->
       io:format("Cycle ~p~n",[N]),
       ListPid ! {timer},
       timer:sleep(Time),

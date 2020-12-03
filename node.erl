@@ -1,5 +1,5 @@
 - module(node).
-- export([init/8,passive/6,active/7, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1,listen/0]).
+- export([init/8,passive/6,active/7, permute/1,moveOldest/2,remove_Oldest/2,increaseAge/1,listen/0,remove_Dup/1]).
 - import(network,[getNeighbors/2]).
 - record(state, {id, pid, buffer, view}).
 
@@ -56,7 +56,6 @@ active(State,H,S,C,PushPull,T,PeerS) ->
     {timer} ->
       if
         PeerS =:= tail ->
-          io:format("view ~p~n",[State#state.view]),
           Peer = lists:last(State#state.view);
         PeerS =:= rand ->
           Peer = lists:nth(rand:uniform(length(State#state.view)-1), State#state.view)
@@ -69,11 +68,12 @@ active(State,H,S,C,PushPull,T,PeerS) ->
         PushPull ->
           receive
             {pull, BufferP, P} ->
+              io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
               View_select = select(C,H,S,BufferP,State#state.view),
               NewView = increaseAge(View_select),
               NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
           after T ->
-              NewView = lists:delete(Peer,State#state.view),
+              NewView = increaseAge(lists:delete(Peer,State#state.view)),
               NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
           end;
         true ->
@@ -135,9 +135,50 @@ remove_Random(View,N) ->
   RandomElement = lists:nth(rand:uniform(length(View)-1), View),
   remove_Random(lists:delete(RandomElement,View),N-1).
 
+remove_Dup(View) ->
+  remove_Dup(View,View).
+
+remove_Dup([],NewView) ->
+  NewView;
+
+remove_Dup([A],NewView) ->
+  NewView;
+
+remove_Dup([A|B],NewView) ->
+  L = remove_Dup(B,A,NewView),
+  if
+    length(L) =:= length(NewView) ->
+      remove_Dup(B,L);
+    true ->
+      remove_Dup(L,L)
+  end.
+
+remove_Dup([],C,Acc) ->
+  Acc;
+
+remove_Dup([A],C,Acc) ->
+  X = lists:nth(2,A),
+  Y = lists:nth(2,C),
+  if
+    X =:= Y ->
+      lists:delete(A,Acc);
+    true ->
+      Acc
+  end;
+
+remove_Dup([A|B],C,Acc) ->
+  X = lists:nth(2,A),
+  Y = lists:nth(2,C),
+  if
+    X =:= Y ->
+      remove_Dup(B,C,lists:delete(A,Acc));
+    true ->
+      remove_Dup(B,C,Acc)
+  end.
+
 select(C,H,S,BufferP,View) ->
   View_append = lists:append(View, BufferP),
-  View_no_dup = lists:usort(View_append),
+  View_no_dup = remove_Dup(View_append),
   View_remove_old = remove_Oldest(View_no_dup,min(H,length(View_no_dup)-C)),
   View_remove_head = remove_Head(View_remove_old,min(S,length(View_remove_old)-C)),
   remove_Random(View_remove_head,max(0,length(View_remove_head)-C)).
