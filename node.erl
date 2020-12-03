@@ -13,7 +13,6 @@ listen() ->
 
 init(Id, C, H, S, PushPull, PeerS, List) ->
   State = #state{id = Id, pid = self(), buffer = [], view = [getNeigh(List,Id)]},
-  io:format("hi ~p", [State#state.view]),
   ActivePid = spawn(node, active, [State,H,S,C,PushPull,PeerS]),
   PassivePid = spawn(node, passive, [State,H,S,C,PushPull,PeerS]),
   node_hub(ActivePid,PassivePid).
@@ -21,7 +20,6 @@ init(Id, C, H, S, PushPull, PeerS, List) ->
 
 node_hub(ActivePid,PassivePid) ->
   receive
-    {kill} -> ActivePid ! {kill};
     {timer} -> ActivePid ! {timer};
     {push,BufferP,P} -> PassivePid ! {push, BufferP,P};
     {pull,BufferP,P} -> ActivePid ! {pull,BufferP,P};
@@ -143,20 +141,27 @@ select(C,H,S,BufferP,View) ->
 increaseAge(View) ->
     lists:map(fun([A,B]) -> [A+1,B] end, View).
 
-transform([],Acc) ->
+transform([],List,Acc) ->
   Acc;
 
-transform([X],Acc) ->
-  Neigh = [[0,maps:get(pid,X)]],
-  lists:append(Acc,Neigh);
+transform([X],List,Acc) ->
+  List ! {getPID,maps:get(id,X),self()},
+  receive {pid,Pid} ->
+    Neigh = [[0,Pid]],
+    lists:append(Acc,Neigh)
+  end;
 
-transform([X|Y],Acc) ->
-  Neigh = [[0,maps:get(pid,X)]],
-  transform(Y,lists:append(Acc,Neigh)).
+transform([X|Y],List,Acc) ->
+  List ! {getPID,maps:get(id,X),self()},
+  receive {pid,Pid} ->
+    Neigh = [[0,Pid]],
+    transform(Y,List,lists:append(Acc,Neigh))
+  end.
+
 
 getNeigh(List,Id) ->
   List ! {getNeigh,Id,self()},
   receive
     {neigh,Neighbors} ->
-      transform(Neighbors,[])
+      transform(Neighbors,List,[])
   end.

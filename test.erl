@@ -5,8 +5,8 @@
 
 launch() ->
   ListPid = spawn(network,listen,[[]]),
-  ListPid ! {init,5}.
-  %ListPid ! {launchNodes,1,0,0,true,tail}.
+  ListPid ! {init,5},
+  ListPid ! {launchNodes,1,0,0,true,tail}.
   %NodePid1 = spawn(node,init,[1,1,0,0,true,tail]),
   %NodePid2 = spawn(node,init,[2,1,0,0,true,tail]),
   %NodePid1 ! {update, [[0,NodePid2]],active},
