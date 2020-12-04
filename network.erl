@@ -80,8 +80,9 @@ kill_N_nodes(N,List) ->
 listen(LinkedList) ->
   receive
     {init,N} ->
-      L = network_list(N,unmake_circular(LinkedList)),
+      L = network_list(N,unmake_circular(lists:reverse(lists:sort(LinkedList)))),
       H = make_circular(lists:reverse(lists:sort(L))),
+      io:format("linkedlist ~p ~n", [H]),
       listen(H);
     {getNeigh,Id, From} ->
       Neighbors = getNeighbors(Id,LinkedList),
@@ -115,5 +116,9 @@ test_makeC() ->
   make_circular(lists:reverse(lists:sort(network_list(2,[])))).
 
  test_unmakeC() ->
-   %L = unmake_circular(lists:reverse(lists:sort(network_list(5,[])))),
-   make_circular(lists:reverse(lists:sort(network_list(1,[])))).
+   L =make_circular(lists:reverse(lists:sort(network_list(3,[])))),
+   H = unmake_circular(lists:reverse(lists:sort(L))),
+   L2 = make_circular(lists:reverse(lists:sort(network_list(3,H)))),
+   io:format("LIST 1 ~p~n", [L]),
+   io:format("LIST 2 ~p~n", [H]),
+   io:format("LIST 3 ~p~n", [L2]).
