@@ -80,7 +80,7 @@ active(State,H,S,C,PushPull,T,PeerS) ->
             PushPull ->
               receive
                 {pull, BufferP, _} ->
-                  io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
+                  %io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
                   View_select = select(C,H,S,BufferP,State#state.view,State#state.pid),
                   NewView = increaseAge(View_select),
                   NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}

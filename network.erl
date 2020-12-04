@@ -11,22 +11,22 @@ add(ID,PID,[ #{id := ID_before,pid := PID_before , linked_node_list := List_befo
   #{id => ID_before,pid => PID_before ,linked_node_list => lists:append([#{id => ID}],List_before)} |T].
 
 % need filter list with le ID_max in first position and id = 1 in last with lists:reverse(lists:sort(LIST))
-make_circular2([#{id := 1, linked_node_list := List}|T])->
-  lists:reverse([ #{id => 1 , linked_node_list => lists:append([#{id =>(length(T)+1)}],List)} | T]).
+make_circular2([#{id := 1, linked_node_list := List, pid := PID}|T])->
+  lists:reverse([ #{id => 1 , pid => PID, linked_node_list => lists:append([#{id =>(length(T)+1)}],List)} | T]).
 
-make_circular([ #{id := ID_max , linked_node_list := List} |T])->
-  make_circular2(lists:reverse([ #{id => ID_max , linked_node_list => lists:append([#{id => 1}],List)} | T])).
+make_circular([ #{id := ID_max , linked_node_list := List, pid := PID} |T])->
+  make_circular2(lists:reverse([ #{id => ID_max ,pid => PID, linked_node_list => lists:append([#{id => 1}],List)} | T])).
 
 % undo the cycles on the list
 % need filter list with le ID_max in first position and id = 1 in last with lists:reverse(lists:sort(LIST))
-unmake_circular2([#{id := 1}|T])->
-  lists:reverse([ #{id => 1 , linked_node_list =>[#{id => 2}]} | T]).
+unmake_circular2([#{id := 1,pid := PID}|T])->
+  lists:reverse([ #{id => 1 ,pid => PID, linked_node_list =>[#{id => 2}]} | T]).
 
 unmake_circular([]) ->
    [];
 
-unmake_circular([#{id := ID_max}|T])->
-  unmake_circular2(lists:reverse([ #{id => ID_max , linked_node_list =>[#{id => (ID_max-1)}]} | T])).
+unmake_circular([#{id := ID_max,pid := PID}|T])->
+  unmake_circular2(lists:reverse([ #{id => ID_max ,pid =>PID, linked_node_list =>[#{id => (ID_max-1)}]} | T])).
 
 
 
@@ -37,7 +37,7 @@ network_list(Node,[]) ->
 network_list(Node,List)->
   network_list(Node, List, length(List)).
 
-network_list(0,List,N) ->
+network_list(0,List,_) ->
   %make_circular(N,List);
   List;
 network_list(Node,List,N) ->
@@ -66,16 +66,23 @@ time([A|B]) ->
   maps:get(pid,A) ! {timer},
   time(B).
 
-kill(_,[])-> true;
-kill(ID, [#{id := ID,pid := PID}|_])-> PID ! {kill};
-kill(ID, [_|T])-> kill(ID, T).
+%kill(_,[])-> true;
+%kill(ID, [#{id := ID,pid := PID}|_])-> PID ! {kill};
+%kill(ID, [_|T])-> kill(ID, T).
+
+kill_N_nodes(0,_) -> true;
+kill_N_nodes(_,[]) -> true;
+kill_N_nodes(N,List) ->
+  Node = lists:nth(rand:uniform(length(List)),List),
+  maps:get(pid,Node) ! {kill},
+  kill_N_nodes(N-1,lists:delete(Node,List)).
 
 listen(LinkedList) ->
   receive
     {init,N} ->
       L = network_list(N,unmake_circular(LinkedList)),
-      io:format("LinkedList ~n ~p ~n",[L]),
-      listen(lists:reverse(lists:sort(make_circular(L))));
+      H = make_circular(lists:reverse(lists:sort(L))),
+      listen(H);
     {getNeigh,Id, From} ->
       Neighbors = getNeighbors(Id,LinkedList),
       From ! {neigh,Neighbors};
@@ -85,8 +92,8 @@ listen(LinkedList) ->
       From ! {pid,getPID(Id,LinkedList)};
     {timer} ->
       time(LinkedList);
-    {kill,Id} ->
-      kill(Id,LinkedList)
+    {kill,N} ->
+      kill_N_nodes(N,LinkedList)
   end,
   listen(LinkedList).
 
@@ -108,5 +115,5 @@ test_makeC() ->
   make_circular(lists:reverse(lists:sort(network_list(2,[])))).
 
  test_unmakeC() ->
-   L = unmake_circular(lists:reverse(lists:sort(network_list(5,[])))),
-   make_circular(lists:reverse(lists:sort(L))).
+   %L = unmake_circular(lists:reverse(lists:sort(network_list(5,[])))),
+   make_circular(lists:reverse(lists:sort(network_list(1,[])))).
