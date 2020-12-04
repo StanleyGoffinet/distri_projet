@@ -3,7 +3,7 @@
 -import(node,[listen/0]).
 % first node
 add(ID,PID,[])->
-  [#{id => ID,pid => PID, linked_node_list => [#{id => 1}]}];
+  [#{id => ID,pid => PID, linked_node_list => []}];
 % other node
 add(ID,PID,[ #{id := ID_before,pid := PID_before , linked_node_list := List_before} |T ])->
 
@@ -102,19 +102,7 @@ test_network() ->
   network_list(5,[])
   .
 test_makeC() ->
-  make_circular(lists:reverse(lists:sort([
-  #{id => 5,linked_node_list => [#{id => 4}],pid => 0},
-  #{id => 1,linked_node_list => [#{id => 2}],pid => 0},
-  #{id => 4,linked_node_list => [#{id => 3},#{id => 5}],pid => 0},
-  #{id => 3,linked_node_list => [#{id => 2},#{id => 4}],pid => 0},
-  #{id => 2,linked_node_list => [#{id => 1},#{id => 3}],pid => 0}
-   ]))).
+  make_circular(lists:reverse(lists:sort(network_list(5,[])))).
 
  test_unmakeC() ->
-   unmake_circular(lists:reverse(lists:sort([
-   #{id => 5,linked_node_list => [#{id => 4},#{id => 1}],pid => 0},
-   #{id => 1,linked_node_list => [#{id => 2},#{id => 5}],pid => 0},
-   #{id => 4,linked_node_list => [#{id => 3},#{id => 5}],pid => 0},
-   #{id => 3,linked_node_list => [#{id => 2},#{id => 4}],pid => 0},
-   #{id => 2,linked_node_list => [#{id => 1},#{id => 3}],pid => 0}
-    ]))).
+   make_circular(lists:reverse(lists:sort(network_list(5,[])))).
