@@ -51,7 +51,7 @@ passive(State,H,S,C,PushPull,PeerS) ->
           Buffer = lists:append([[0,State#state.pid]], lists:sublist(View, floor(abs(C/2-1)))),
           P ! {pull, Buffer, self()}
       end,
-    View_select = select(C,H,S,BufferP,State#state.view),
+    View_select = select(C,H,S,BufferP,State#state.view,State#state.pid),
     NewView = increaseAge(View_select),
     NewState = #state{id = State#state.id, pid = State#state.pid, buffer = Buffer, view = NewView},
     State#state.pid ! {update,NewView,active},
@@ -65,33 +65,38 @@ active(State,H,S,C,PushPull,T,PeerS) ->
       active(NewState,H,S,C,PushPull,T,PeerS);
     {timer} ->
       if
-        PeerS =:= tail ->
-          Peer = lists:last(State#state.view);
-        PeerS =:= rand ->
-          Peer = lists:nth(rand:uniform(length(State#state.view)-1), State#state.view)
-      end,
-      PermutedView = permute(State#state.view),
-      View = moveOldest(PermutedView,H),
-      Buffer = lists:append([[0,State#state.pid]],lists:sublist(View, floor(abs(C/2-1)))),
-      lists:last(Peer) ! {push,Buffer,self()},
-      if
-        PushPull ->
-          receive
-            {pull, BufferP, P} ->
-              io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
-              View_select = select(C,H,S,BufferP,State#state.view),
-              NewView = increaseAge(View_select),
-              NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
-          after T ->
-              NewView = increaseAge(lists:delete(Peer,State#state.view)),
-              NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
-          end;
+        State#state.view =/= [] ->
+          if
+            PeerS =:= tail ->
+              Peer = lists:last(State#state.view);
+            PeerS =:= rand ->
+              Peer = lists:nth(rand:uniform(length(State#state.view)), State#state.view)
+          end,
+          PermutedView = permute(State#state.view),
+          View = moveOldest(PermutedView,H),
+          Buffer = lists:append([[0,State#state.pid]],lists:sublist(View, floor(abs(C/2-1)))),
+          lists:last(Peer) ! {push,Buffer,self()},
+          if
+            PushPull ->
+              receive
+                {pull, BufferP, _} ->
+                  io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
+                  View_select = select(C,H,S,BufferP,State#state.view,State#state.pid),
+                  NewView = increaseAge(View_select),
+                  NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
+              after T ->
+                  NewView = increaseAge(lists:delete(Peer,State#state.view)),
+                  NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
+              end;
+            true ->
+              NewView = increaseAge(State#state.view),
+              NewState = #state{id= State#state.id, pid = State#state.pid, buffer = Buffer, view = NewView}
+          end,
+          State#state.pid ! {update,NewView, passive},
+          active(NewState,H,S,C,PushPull,T,PeerS);
         true ->
-          NewView = increaseAge(State#state.view),
-          NewState = #state{id= State#state.id, pid = State#state.pid, buffer = Buffer, view = NewView}
-      end,
-      State#state.pid ! {update,NewView, passive},
-      active(NewState,H,S,C,PushPull,T,PeerS)
+          active(State,H,S,C,PushPull,T,PeerS)
+    end
   end.
 
 permute(View) ->
@@ -142,7 +147,7 @@ remove_Random([],_) ->
 remove_Random(View,0) ->
   View;
 remove_Random(View,N) ->
-  RandomElement = lists:nth(rand:uniform(length(View)-1), View),
+  RandomElement = lists:nth(rand:uniform(length(View)), View),
   remove_Random(lists:delete(RandomElement,View),N-1).
 
 remove_Dup(View) ->
@@ -186,12 +191,35 @@ remove_Dup([A|B],C,Acc) ->
       remove_Dup(B,C,Acc)
   end.
 
-select(C,H,S,BufferP,View) ->
+remove_himself([],_,View) ->
+  View;
+
+remove_himself([A],Pid,View) ->
+  X = lists:nth(2,A),
+  if
+    X =:= Pid ->
+      lists:delete(A,View);
+    true ->
+      View
+  end;
+
+remove_himself([A|B],Pid,View) ->
+  X = lists:nth(2,A),
+  if
+    X =:= Pid ->
+      remove_himself(B,Pid,lists:delete(A,View));
+    true ->
+      remove_himself(B,Pid,View)
+  end.
+
+
+select(C,H,S,BufferP,View,Pid) ->
   View_append = lists:append(View, BufferP),
   View_no_dup = remove_Dup(View_append),
   View_remove_old = remove_Oldest(View_no_dup,min(H,length(View_no_dup)-C)),
   View_remove_head = remove_Head(View_remove_old,min(S,length(View_remove_old)-C)),
-  remove_Random(View_remove_head,max(0,length(View_remove_head)-C)).
+  View_remove_random = remove_Random(View_remove_head,max(0,length(View_remove_head)-C)),
+  remove_himself(View_remove_random,Pid,View_remove_random).
 
 increaseAge(View) ->
     lists:map(fun([A,B]) -> [A+1,B] end, View).
