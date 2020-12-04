@@ -5,9 +5,12 @@
 
 launch(Time) ->
   ListPid = spawn(network,listen,[[]]),
-  ListPid ! {init,2},
-  ListPid ! {launchNodes,7,4,3,true,floor(Time/2),tail},
-  cycle(ListPid,1,Time).
+  ListPid ! {init,5},
+  ListPid ! {init,6}.
+  %ListPid ! {launchNodes,7,4,3,true,floor(Time/2),tail},
+  %ListPid ! {kill,1},
+  %ListPid ! {launchNodes,7,4,3,true,floor(Time/2),tail},
+  %cycle(ListPid,1,Time).
   %test_time(Time).
 
 cycle(ListPid,N,Time) ->

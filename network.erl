@@ -1,4 +1,4 @@
--module(net0).
+-module(network).
 -export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1,test_makeC/0,test_unmakeC/0]).
 -import(node,[listen/0]).
 % first node
@@ -29,10 +29,17 @@ unmake_circular(1,[#{id := ID_max}|T])->
 
 %network_list(0,List_netw)->lists:reverse(List_netw);
 network_list(0,List_netw)->List_netw;
+network_list(Node,[]) ->
+  network_list(Node,[],0);
 network_list(Node,List)->
-NodePid = spawn(node,listen,[]),
-network_list(Node-1, add(Node,NodePid, List)).
+  network_list(Node, List, length(List)).
 
+network_list(0,List,N) ->
+  %make_circular(N,List);
+  List;
+network_list(Node,List,N) ->
+  NodePid = spawn(node,listen,[]),
+  network_list(Node-1, add(Node+N,NodePid,List),N).
 
 getPID(_,[])-> "Error, give empty list";
 getPID(ID, [#{id := ID,pid := PID}|_])-> PID;
@@ -56,25 +63,32 @@ time([A|B]) ->
   maps:get(pid,A) ! {timer},
   time(B).
 
+kill(_,[])-> true;
+kill(ID, [#{id := ID,pid := PID}|_])-> PID ! {kill};
+kill(ID, [_|T])-> kill(ID, T).
+
 listen(LinkedList) ->
   receive
     {init,N} ->
       L = network_list(N,LinkedList),
+      io:format("LinkedList ~n ~p ~n",[L]),
       listen(L);
     {getNeigh,Id, From} ->
       Neighbors = getNeighbors(Id,LinkedList),
-      From ! {neigh,Neighbors},
-      listen(LinkedList);
+      From ! {neigh,Neighbors};
     {launchNodes,C,H,S,PushPull,T,PeerS} ->
-      launchNodes(LinkedList,C,H,S,PushPull,T,PeerS),
-      listen(LinkedList);
+      launchNodes(LinkedList,C,H,S,PushPull,T,PeerS);
     {getPID,Id,From} ->
-      From ! {pid,getPID(Id,LinkedList)},
-      listen(LinkedList);
+      From ! {pid,getPID(Id,LinkedList)};
     {timer} ->
-      time(LinkedList),
-      listen(LinkedList)
-  end.
+      time(LinkedList);
+    {kill,Id} ->
+      kill(Id,LinkedList)
+  end,
+  listen(LinkedList).
+
+
+
 
 test_getN() ->
   List = network_list(5,[]),

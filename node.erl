@@ -15,18 +15,28 @@ init(Id, C, H, S, PushPull,T, PeerS, List) ->
   State = #state{id = Id, pid = self(), buffer = [], view = getNeigh(List,Id)},
   ActivePid = spawn(node, active, [State,H,S,C,PushPull,T,PeerS]),
   PassivePid = spawn(node, passive, [State,H,S,C,PushPull,PeerS]),
-  node_hub(ActivePid,PassivePid).
+  node_hub(ActivePid,PassivePid,true).
 
 
-node_hub(ActivePid,PassivePid) ->
-  receive
-    {timer} -> ActivePid ! {timer};
-    {push,BufferP,P} -> PassivePid ! {push, BufferP,P};
-    {pull,BufferP,P} -> ActivePid ! {pull,BufferP,P};
-    {update,NewState,passive} -> PassivePid ! {update,NewState};
-    {update,NewState,active} -> ActivePid ! {update,NewState}
-  end,
-  node_hub(ActivePid,PassivePid).
+node_hub(ActivePid,PassivePid,Alive) ->
+  if
+    Alive ->
+      receive
+        {kill} ->
+          io:format("node ~p killed! ~n",[self()]),
+          node_hub(ActivePid,PassivePid,false);
+        {timer} -> ActivePid ! {timer};
+        {push,BufferP,P} -> PassivePid ! {push, BufferP,P};
+        {pull,BufferP,P} -> ActivePid ! {pull,BufferP,P};
+        {update,NewState,passive} -> PassivePid ! {update,NewState};
+        {update,NewState,active} -> ActivePid ! {update,NewState}
+      end,
+      node_hub(ActivePid,PassivePid,true);
+    true ->
+      receive
+        {recover} -> node_hub(ActivePid,PassivePid,true)
+      end
+  end.
 
 passive(State,H,S,C,PushPull,PeerS) ->
   receive
@@ -95,7 +105,7 @@ shuffle(List, Acc) ->
 {Leading, [H | T]} = lists:split(rand:uniform(length(List)) - 1, List),
 shuffle(Leading ++ T, [H | Acc]).
 
-moveOldest([],H,Acc) ->
+moveOldest([],_,Acc) ->
   Acc;
 
 moveOldest(View, 0, Acc) ->
@@ -108,7 +118,7 @@ moveOldest(View,H,Acc) ->
 
 moveOldest(PermutedView,H) -> moveOldest(PermutedView,H,[]).
 
-remove_Oldest([],H) ->
+remove_Oldest([],_) ->
   [];
 
 remove_Oldest(View,0) ->
@@ -127,7 +137,7 @@ remove_Head(View,S) ->
     true -> View
   end.
 
-remove_Random([],N) ->
+remove_Random([],_) ->
   [];
 remove_Random(View,0) ->
   View;
@@ -141,7 +151,7 @@ remove_Dup(View) ->
 remove_Dup([],NewView) ->
   NewView;
 
-remove_Dup([A],NewView) ->
+remove_Dup([_],NewView) ->
   NewView;
 
 remove_Dup([A|B],NewView) ->
@@ -153,7 +163,7 @@ remove_Dup([A|B],NewView) ->
       remove_Dup(L,L)
   end.
 
-remove_Dup([],C,Acc) ->
+remove_Dup([],_,Acc) ->
   Acc;
 
 remove_Dup([A],C,Acc) ->
@@ -186,7 +196,7 @@ select(C,H,S,BufferP,View) ->
 increaseAge(View) ->
     lists:map(fun([A,B]) -> [A+1,B] end, View).
 
-transform([],List,Acc) ->
+transform([],_,Acc) ->
   Acc;
 
 transform([X],List,Acc) ->
