@@ -22,6 +22,9 @@ make_circular([ #{id := ID_max , linked_node_list := List} |T])->
 unmake_circular2([#{id := 1}|T])->
   lists:reverse([ #{id => 1 , linked_node_list =>[#{id => 2}]} | T]).
 
+unmake_circular([]) ->
+   [];
+
 unmake_circular([#{id := ID_max}|T])->
   unmake_circular2(lists:reverse([ #{id => ID_max , linked_node_list =>[#{id => (ID_max-1)}]} | T])).
 
@@ -70,9 +73,9 @@ kill(ID, [_|T])-> kill(ID, T).
 listen(LinkedList) ->
   receive
     {init,N} ->
-      L = network_list(N,LinkedList),
+      L = network_list(N,unmake_circular(LinkedList)),
       io:format("LinkedList ~n ~p ~n",[L]),
-      listen(L);
+      listen(lists:reverse(lists:sort(make_circular(L))));
     {getNeigh,Id, From} ->
       Neighbors = getNeighbors(Id,LinkedList),
       From ! {neigh,Neighbors};
@@ -102,7 +105,8 @@ test_network() ->
   network_list(5,[])
   .
 test_makeC() ->
-  make_circular(lists:reverse(lists:sort(network_list(5,[])))).
+  make_circular(lists:reverse(lists:sort(network_list(2,[])))).
 
  test_unmakeC() ->
-   make_circular(lists:reverse(lists:sort(network_list(5,[])))).
+   L = unmake_circular(lists:reverse(lists:sort(network_list(5,[])))),
+   make_circular(lists:reverse(lists:sort(L))).
