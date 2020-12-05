@@ -1,15 +1,19 @@
 -module(network).
--export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1,test_makeC/0,test_unmakeC/0]).
+-export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1,test_circular/0]).
 -import(node,[listen/0]).
-% first node
+
+% Add function for the first node with the max ID in the Double-linked list
+% parameters : ID and PID of the new nodes started and empty list (network)
 add(ID,PID,[])->
   [#{id => ID,pid => PID, linked_node_list => []}];
-% other node
+% Add function for the other nodes when the network has allready 1 node inside
 add(ID,PID,[ #{id := ID_before,pid := PID_before , linked_node_list := List_before} |T ])->
-
+  % append the new node in the Double-linked list in first position and append the id of the new nodes
+  % in the Neighbors list of the node who was first in the list before before insertion
   [#{id =>ID, pid => PID , linked_node_list => [#{id=>ID_before}]},
   #{id => ID_before,pid => PID_before ,linked_node_list => lists:append([#{id => ID}],List_before)} |T].
 
+% function who sort and make the Double-linked list circular => first and last element links
 % need filter list with le ID_max in first position and id = 1 in last with lists:reverse(lists:sort(LIST))
 make_circular2([#{id := 1, linked_node_list := List, pid := PID}|T])->
   lists:reverse([ #{id => 1 , linked_node_list => lists:append([#{id =>(length(T)+1)}],List),  pid => PID} | T]).
@@ -17,7 +21,8 @@ make_circular2([#{id := 1, linked_node_list := List, pid := PID}|T])->
 make_circular([ #{id := ID_max , linked_node_list := List, pid := PID} |T])->
   make_circular2(lists:reverse([ #{id => ID_max , linked_node_list => lists:append([#{id => 1}],List),pid => PID} | T])).
 
-% undo the cycles on the list
+% function who sort and undo the cycles on the Double-linked list => first and last element not links
+% parameters : List which is the Double-linked list
 % need filter list with le ID_max in first position and id = 1 in last with lists:reverse(lists:sort(LIST))
 unmake_circular2([#{id := 1,pid := PID}|T])->
   lists:reverse([ #{id => 1, linked_node_list =>[#{id => 2}],pid => PID} | T]).
@@ -28,7 +33,8 @@ unmake_circular([]) ->
 unmake_circular([#{id := ID_max,pid := PID}|T])->
   unmake_circular2(lists:reverse([ #{id => ID_max, linked_node_list =>[#{id => (ID_max-1)}],pid =>PID} | T])).
 
-%network_list(0,List_netw)->lists:reverse(List_netw);
+% network function who create the Double-linked list by adding recursively node by node and start process with spawn
+% parameters : int for accumulator for the recursion, list which is the Double-linked list
 network_list(0,List_netw)->List_netw;
 
 network_list(Node,[]) ->
@@ -37,8 +43,9 @@ network_list(Node,List)->
   network_list(Node, List, length(List)).
 
 network_list(0,List,_) ->
-  %make_circular(N,List);
   List;
+% recursion function who append itself and make the function add in each iteration
+% add a node with IDmax+1 as ID
 network_list(Node,List,N) ->
   NodePid = spawn(node,listen,[]),
   network_list(Node-1, add(1+N,NodePid,List),N+1).
@@ -98,6 +105,7 @@ listen(LinkedList) ->
   listen(LinkedList).
 
 
+%----------------- TEST -------------------------------------------------------
 test_getN() ->
   List = network_list(5,[]),
   [getNeighbors(1,List),getNeighbors(4,List)]
@@ -111,10 +119,8 @@ test_getPID() ->
 test_network() ->
   network_list(5,[])
   .
-test_makeC() ->
-  make_circular(lists:reverse(lists:sort(network_list(2,[])))).
 
-test_unmakeC() ->
+test_circular() ->
   L = make_circular(lists:reverse(lists:sort(network_list(3,[])))),
   H = unmake_circular(lists:reverse(lists:sort(L))),
   L2 = network_list(6,H),
