@@ -22,19 +22,29 @@ node_hub(ActivePid,PassivePid,Alive) ->
   if
     Alive ->
       receive
+        {getView,From} ->
+          ActivePid ! {getView,From};
         {kill} ->
           io:format("node ~p killed! ~n",[self()]),
           node_hub(ActivePid,PassivePid,false);
+        {recover,_,From} -> From ! {alive};
         {timer} -> ActivePid ! {timer};
         {push,BufferP,P} -> PassivePid ! {push, BufferP,P};
         {pull,BufferP,P} -> ActivePid ! {pull,BufferP,P};
-        {update,NewState,passive} -> PassivePid ! {update,NewState};
-        {update,NewState,active} -> ActivePid ! {update,NewState}
+        {update,NewView,passive} -> PassivePid ! {update,NewView};
+        {update,NewView,active} -> ActivePid ! {update,NewView}
       end,
       node_hub(ActivePid,PassivePid,true);
     true ->
       receive
-        {recover} -> node_hub(ActivePid,PassivePid,true)
+        {getView,From} ->
+          From ! {ko};
+        {recover,NewView,From} ->
+          io:format("node ~p recover! ~n",[self()]),
+          PassivePid ! {update,NewView},
+          ActivePid ! {update,NewView},
+          From ! {ok},
+          node_hub(ActivePid,PassivePid,true)
       end
   end.
 
@@ -60,6 +70,9 @@ passive(State,H,S,C,PushPull,PeerS) ->
 
 active(State,H,S,C,PushPull,T,PeerS) ->
   receive
+    {getView, From} ->
+      From ! {ok,State#state.view},
+      active(State,H,S,C,PushPull,T,PeerS);
     {update,NewView} ->
       NewState = #state{id= State#state.id, pid = State#state.pid, buffer = [], view = NewView},
       active(NewState,H,S,C,PushPull,T,PeerS);
@@ -85,6 +98,7 @@ active(State,H,S,C,PushPull,T,PeerS) ->
                   NewView = increaseAge(View_select),
                   NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
               after T ->
+                  io:format("TIMEOUT ~n"),
                   NewView = increaseAge(lists:delete(Peer,State#state.view)),
                   NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
               end;

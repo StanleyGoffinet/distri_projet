@@ -83,12 +83,43 @@ kill_N_nodes(N,List) ->
   maps:get(pid,Node) ! {kill},
   kill_N_nodes(N-1,lists:delete(Node,List)).
 
+alive(_,_,[]) ->
+  true;
+
+alive(0,_,_) ->
+  true;
+
+alive(N,View,List) ->
+  Node = lists:nth(1,List),
+  Pid = maps:get(pid,Node),
+  Pid ! {recover,View,self()},
+  receive
+    {alive} ->
+      alive(N,View,lists:delete(Node,List));
+    {ok} ->
+      alive(N-1,View,lists:delete(Node,List))
+  end.
+
+choose_peer_recover(_,[],_) ->
+  io:format("No Alive Left");
+
+choose_peer_recover(N,List,Full_List) ->
+  Node = lists:nth(rand:uniform(length(List)),List),
+  Pid = maps:get(pid,Node),
+  Pid ! {getView,self()},
+  receive
+    {ko} ->
+      choose_peer_recover(N,lists:delete(Node,List),Full_List);
+    {ok,View} ->
+      alive(N,View,Full_List)
+  end.
+
 listen(LinkedList) ->
   receive
     {init,N} ->
       L = network_list(N,unmake_circular(lists:reverse(lists:sort(LinkedList)))),
       H = make_circular(lists:reverse(lists:sort(L))),
-      io:format("linkedlist ~p ~n", [H]),
+      %io:format("linkedlist ~p ~n", [H]),
       listen(H);
     {getNeigh,Id, From} ->
       Neighbors = getNeighbors(Id,LinkedList),
@@ -100,7 +131,9 @@ listen(LinkedList) ->
     {timer} ->
       time(LinkedList);
     {kill,N} ->
-      kill_N_nodes(N,LinkedList)
+      kill_N_nodes(N,LinkedList);
+    {recover,N} ->
+       choose_peer_recover(N,LinkedList,LinkedList)
   end,
   listen(LinkedList).
 
