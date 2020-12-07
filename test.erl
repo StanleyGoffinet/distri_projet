@@ -1,5 +1,4 @@
 -module(test).
--import(node,[init/6]).
 -import(network,[listen/1]).
 -export([launch/7,test/1]).
 
@@ -7,15 +6,15 @@ launch(H,S,C,Peers,PushPull,Time,N) ->
   ListPid = spawn(network,listen,[[]]),
   ListPid ! {init,floor(N)},
   ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
-  %cycle(ListPid,1,Time,1),
-  %ListPid ! {init,floor(N*0.2)},
-  %ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
-  %cycle(ListPid,1,Time,31),
-  %ListPid ! {init,floor(N*0.2)},
-  %ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
-  %cycle(ListPid,1,Time,61),
-  %ListPid ! {init,floor(N*0.2)},
-  %ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
+  cycle(ListPid,1,Time,1),
+  ListPid ! {init,floor(N*0.2)},
+  ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
+  cycle(ListPid,1,Time,31),
+  ListPid ! {init,floor(N*0.2)},
+  ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
+  cycle(ListPid,1,Time,61),
+  ListPid ! {init,floor(N*0.2)},
+  ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
   cycle(ListPid,1,Time,91),
   Killed = floor(N*0.6),
   ListPid ! {kill,Killed},

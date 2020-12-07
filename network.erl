@@ -1,5 +1,5 @@
 -module(network).
--export([network_list/2,getNeighbors/2,getPID/2,test_getN/0,test_getPID/0,test_network/0,listen/1,test_circular/0]).
+-export([test_getN/0,test_getPID/0,test_network/0,listen/1,test_circular/0]).
 -import(node,[listen/0]).
 
 % Add function for the first node with the max ID in the Double-linked list
@@ -50,14 +50,18 @@ network_list(Node,List,N) ->
   NodePid = spawn(node,listen,[]),
   network_list(Node-1, add(1+N,NodePid,List),N+1).
 
+%Return the PID corresponding to the node
 getPID(_,[])-> "Error, give empty list";
 getPID(ID, [#{id := ID,pid := PID}|_])-> PID;
 getPID(ID, [_|T])-> getPID(ID, T).
 
+
+%Return Neighbors of an Element in the LinkedList
 getNeighbors(_,[])-> "Error, the node is not in the list";
 getNeighbors(ID, [#{id := ID,linked_node_list:= Neighbors}|_])-> Neighbors;
 getNeighbors(ID, [_|T])-> getNeighbors(ID, T).
 
+%Initialize the Nodes
 launchNodes([A],C,H,S,PushPull,T,PeerS) ->
   maps:get(pid,A) ! {init,maps:get(id,A),C,H,S,PushPull,T,PeerS,self()};
 
@@ -65,6 +69,7 @@ launchNodes([A|B],C,H,S,PushPull,T,PeerS) ->
   maps:get(pid,A) ! {init,maps:get(id,A),C,H,S,PushPull,T,PeerS,self()},
   launchNodes(B,C,H,S,PushPull,T,PeerS).
 
+%Notify the nodes to communicate
 time([A],Counter) ->
   maps:get(pid,A) ! {timer,Counter};
 
@@ -72,10 +77,7 @@ time([A|B],Counter) ->
   maps:get(pid,A) ! {timer,Counter},
   time(B,Counter).
 
-%kill(_,[])-> true;
-%kill(ID, [#{id := ID,pid := PID}|_])-> PID ! {kill};
-%kill(ID, [_|T])-> kill(ID, T).
-
+%Kill N nodes in the Network
 kill_N_nodes(0,_) -> true;
 kill_N_nodes(_,[]) -> true;
 kill_N_nodes(N,List) ->
@@ -83,6 +85,7 @@ kill_N_nodes(N,List) ->
   maps:get(pid,Node) ! {kill},
   kill_N_nodes(N-1,lists:delete(Node,List)).
 
+%Recover N nodes in the Network
 alive(_,_,[]) ->
   true;
 
@@ -100,6 +103,7 @@ alive(N,View,List) ->
       alive(N-1,View,lists:delete(Node,List))
   end.
 
+%Found a Node alive in the Network to send its View to dead Nodes
 choose_peer_recover(_,[],_) ->
   %io:format("No Alive Left");
   true;
@@ -115,6 +119,8 @@ choose_peer_recover(N,List,Full_List) ->
       alive(N,View,Full_List)
   end.
 
+
+%Network Server HUB
 listen(LinkedList) ->
   receive
     {init,N} ->
