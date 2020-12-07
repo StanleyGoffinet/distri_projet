@@ -47,7 +47,13 @@ node_hub(ActivePid,PassivePid,Alive) ->
           PassivePid ! {update,NewView},
           ActivePid ! {update,NewView},
           From ! {ok},
-          node_hub(ActivePid,PassivePid,true)
+          node_hub(ActivePid,PassivePid,true);
+        {_} ->
+          node_hub(ActivePid,PassivePid,Alive);
+        {_,_} ->
+            node_hub(ActivePid,PassivePid,Alive);
+        {_,_,_} ->
+            node_hub(ActivePid,PassivePid,Alive)
       end
   end.
 
