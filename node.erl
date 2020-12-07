@@ -25,22 +25,25 @@ node_hub(ActivePid,PassivePid,Alive) ->
         {getView,From} ->
           ActivePid ! {getView,From};
         {kill} ->
-          io:format("node ~p killed! ~n",[self()]),
+          %io:format("node ~p killed! ~n",[self()]),
           node_hub(ActivePid,PassivePid,false);
         {recover,_,From} -> From ! {alive};
-        {timer} -> ActivePid ! {timer};
+        {timer,Counter} ->
+          ActivePid ! {timer,Counter},
+          node_hub(ActivePid,PassivePid,Alive);
         {push,BufferP,P} -> PassivePid ! {push, BufferP,P};
         {pull,BufferP,P} -> ActivePid ! {pull,BufferP,P};
         {update,NewView,passive} -> PassivePid ! {update,NewView};
         {update,NewView,active} -> ActivePid ! {update,NewView}
       end,
-      node_hub(ActivePid,PassivePid,true);
+      node_hub(ActivePid,PassivePid,Alive);
     true ->
       receive
         {getView,From} ->
-          From ! {ko};
+          From ! {ko},
+          node_hub(ActivePid,PassivePid,Alive);
         {recover,NewView,From} ->
-          io:format("node ~p recover! ~n",[self()]),
+          %io:format("node ~p recover! ~n",[self()]),
           PassivePid ! {update,NewView},
           ActivePid ! {update,NewView},
           From ! {ok},
@@ -76,7 +79,8 @@ active(State,H,S,C,PushPull,T,PeerS) ->
     {update,NewView} ->
       NewState = #state{id= State#state.id, pid = State#state.pid, buffer = [], view = NewView},
       active(NewState,H,S,C,PushPull,T,PeerS);
-    {timer} ->
+    {timer,Counter} ->
+      io:format("log:: ~p ~p ~p~n", [State#state.pid, Counter, lists:map(fun([_,B]) -> B end,State#state.view)]),
       if
         State#state.view =/= [] ->
           if
@@ -93,12 +97,11 @@ active(State,H,S,C,PushPull,T,PeerS) ->
             PushPull ->
               receive
                 {pull, BufferP, _} ->
-                  %io:format("view and pid ~p~n",[[State#state.view,State#state.pid]]),
                   View_select = select(C,H,S,BufferP,State#state.view,State#state.pid),
                   NewView = increaseAge(View_select),
                   NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
               after T ->
-                  io:format("TIMEOUT ~n"),
+                  %io:format("TIMEOUT ~n"),
                   NewView = increaseAge(lists:delete(Peer,State#state.view)),
                   NewState = #state{id = State#state.id,pid= State#state.pid, buffer = Buffer, view = NewView}
               end;

@@ -65,12 +65,12 @@ launchNodes([A|B],C,H,S,PushPull,T,PeerS) ->
   maps:get(pid,A) ! {init,maps:get(id,A),C,H,S,PushPull,T,PeerS,self()},
   launchNodes(B,C,H,S,PushPull,T,PeerS).
 
-time([A]) ->
-  maps:get(pid,A) ! {timer};
+time([A],Counter) ->
+  maps:get(pid,A) ! {timer,Counter};
 
-time([A|B]) ->
-  maps:get(pid,A) ! {timer},
-  time(B).
+time([A|B],Counter) ->
+  maps:get(pid,A) ! {timer,Counter},
+  time(B,Counter).
 
 %kill(_,[])-> true;
 %kill(ID, [#{id := ID,pid := PID}|_])-> PID ! {kill};
@@ -101,7 +101,8 @@ alive(N,View,List) ->
   end.
 
 choose_peer_recover(_,[],_) ->
-  io:format("No Alive Left");
+  %io:format("No Alive Left");
+  true;
 
 choose_peer_recover(N,List,Full_List) ->
   Node = lists:nth(rand:uniform(length(List)),List),
@@ -128,8 +129,8 @@ listen(LinkedList) ->
       launchNodes(LinkedList,C,H,S,PushPull,T,PeerS);
     {getPID,Id,From} ->
       From ! {pid,getPID(Id,LinkedList)};
-    {timer} ->
-      time(LinkedList);
+    {timer,Counter} ->
+      time(LinkedList,Counter);
     {kill,N} ->
       kill_N_nodes(N,LinkedList);
     {recover,N} ->
