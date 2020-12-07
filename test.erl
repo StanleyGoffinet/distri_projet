@@ -1,6 +1,6 @@
 -module(test).
 -import(network,[listen/1]).
--export([launch/7,test/1]).
+-export([launch/7,test/0]).
 
 launch(H,S,C,Peers,PushPull,Time,N) ->
   ListPid = spawn(network,listen,[[]]),
@@ -37,5 +37,6 @@ cycle(ListPid,N,Time,Counter) ->
   end.
 
 
-test(List) ->
-  lists:map(fun([_,B]) -> B end, List).
+test() ->
+  launch(4,3,7,tail,true,1,3).
+  %file:write_file("log.txt",["test\n"],[append]).
