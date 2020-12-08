@@ -38,7 +38,7 @@ cycle(ListPid,N,Time,Counter) ->
 
 
 test() ->
-  launch(4,3,7,tail,true,100,30).
+  launch(4,3,7,tail,true,100,10).
   %file:write_file("log.txt","test\n",[append]).
   %NewWriting = ["1","2","",""]
   %file:write_file("/log.txt", io_lib:fwrite("~p\n", [NewWriting]),[append]).
