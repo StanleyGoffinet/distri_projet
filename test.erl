@@ -28,7 +28,7 @@ launch(H,S,C,Peers,PushPull,Time,N) ->
 cycle(ListPid,N,Time,Counter) ->
   if
     N =< 30 ->
-      io:format("Cycle ~p~n",[Counter]),
+      %io:format("Cycle ~p~n",[Counter]),
       ListPid ! {timer,Counter},
       timer:sleep(Time),
       cycle(ListPid,N+1,Time,Counter+1);
@@ -39,4 +39,6 @@ cycle(ListPid,N,Time,Counter) ->
 
 test() ->
   launch(4,3,7,tail,true,1,3).
-  %file:write_file("log.txt",["test\n"],[append]).
+  %file:write_file("log.txt","test\n",[append]).
+  %NewWriting = ["1","2","",""]
+  %file:write_file("/log.txt", io_lib:fwrite("~p\n", [NewWriting]),[append]).
