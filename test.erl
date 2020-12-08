@@ -4,7 +4,7 @@
 
 launch(H,S,C,Peers,PushPull,Time,N) ->
   ListPid = spawn(network,listen,[[]]),
-  ListPid ! {init,floor(N)},
+  ListPid ! {init,floor(N*0.4)},
   ListPid ! {launchNodes,C,H,S,PushPull,floor(Time/2),Peers},
   cycle(ListPid,1,Time,1),
   ListPid ! {init,floor(N*0.2)},
