@@ -92,9 +92,7 @@ active(State,H,S,C,PushPull,T,PeerS) ->
       NewState = #state{id= State#state.id, pid = State#state.pid, buffer = [], view = NewView},
       active(NewState,H,S,C,PushPull,T,PeerS);
     {timer,Counter} ->
-      NewWriting = [Counter, State#state.pid, lists:map(fun([_,B]) -> B end,State#state.view)],
-      file:write_file("log.txt", io_lib:fwrite("~p\n", [NewWriting])),
-      io:format("log:: ~p ~p ~p~n", [State#state.pid, Counter, lists:map(fun([_,B]) -> B end,State#state.view)]),
+      io:format("log:: ~p ~p ~p~n", [Counter,State#state.pid, lists:map(fun([_,B]) -> B end,State#state.view)]),
       if
         %A node can be alive but with an empty view. It will then be isolated and will not be able to send any information
         State#state.view =/= [] ->
