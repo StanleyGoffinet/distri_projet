@@ -141,7 +141,7 @@ select(C,H,S,BufferP,View,Pid) ->
 
 %Increase Age of element in a list
 increaseAge(View) ->
-    lists:map(fun([A,B]) -> [A+1,B] end, View).
+    lists:map(fun([A,B,C]) -> [A+1,B,C] end, View).
 
 %transform Element return by the network to obtain the desired structure: a list of [Age,Pid]
 transform([],_,Acc) ->
@@ -150,14 +150,14 @@ transform([],_,Acc) ->
 transform([X],List,Acc) ->
   List ! {getPID,maps:get(id,X),self()},
   receive {pid,Pid} ->
-    Neigh = [[0,Pid]],
+    Neigh = [[0,Pid,maps:get(id,X)]],
     lists:append(Acc,Neigh)
   end;
 
 transform([X|Y],List,Acc) ->
   List ! {getPID,maps:get(id,X),self()},
   receive {pid,Pid} ->
-    Neigh = [[0,Pid]],
+    Neigh = [[0,Pid,maps:get(id,X)]],
     transform(Y,List,lists:append(Acc,Neigh))
   end.
 

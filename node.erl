@@ -71,7 +71,7 @@ passive(State,H,S,C,PushPull,PeerS) ->
         PushPull ->
           PermutedView = permute(State#state.view),
           View = moveOldest(PermutedView,H),
-          Buffer = lists:append([[0,State#state.pid]], lists:sublist(View, floor(abs(C/2-1)))),
+          Buffer = lists:append([[0,State#state.pid,State#state.id]], lists:sublist(View, floor(abs(C/2-1)))),
           P ! {pull, Buffer, self()}
       end,
     View_select = select(C,H,S,BufferP,State#state.view,State#state.pid),
@@ -92,7 +92,8 @@ active(State,H,S,C,PushPull,T,PeerS) ->
       NewState = #state{id= State#state.id, pid = State#state.pid, buffer = [], view = NewView},
       active(NewState,H,S,C,PushPull,T,PeerS);
     {timer,Counter} ->
-      io:format("log:: ~p ~p ~p~n", [Counter,State#state.pid, lists:map(fun([_,B]) -> B end,State#state.view)]),
+      ToPrint  = lists:map(fun([_,_,B]) -> B end,State#state.view),
+      io:format("log:: ~p ~p ~w ~n", [Counter,State#state.id, ToPrint ]),
       if
         %A node can be alive but with an empty view. It will then be isolated and will not be able to send any information
         State#state.view =/= [] ->
@@ -104,8 +105,8 @@ active(State,H,S,C,PushPull,T,PeerS) ->
           end,
           PermutedView = permute(State#state.view),
           View = moveOldest(PermutedView,H),
-          Buffer = lists:append([[0,State#state.pid]],lists:sublist(View, floor(abs(C/2-1)))),
-          lists:last(Peer) ! {push,Buffer,self()},
+          Buffer = lists:append([[0,State#state.pid,State#state.id]],lists:sublist(View, floor(abs(C/2-1)))),
+          lists:nth(2,Peer) ! {push,Buffer,self()},
           if
             PushPull ->
               receive
